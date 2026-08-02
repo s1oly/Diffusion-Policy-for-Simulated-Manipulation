@@ -1,8 +1,0 @@
-- Environment: subclass of NutAssemblySquare, reward_shaping=True
-- Task: peg insertion, single object mode, square nut
-- Controllers: 3 variants (clean PD, noisy, hybrid)
-- Data: saved as HDF5 via DataCollectionWrapper
-- Goal: ablate demo quality (N=10/50/100/200) vs diffusion policy success rate
-- File structure: envs/, controllers/, data_collection/
-- Setpoints: instantiated in controller class, not JSON
-- Reward additions: insert stage + seat stage on top of original staged rewards
