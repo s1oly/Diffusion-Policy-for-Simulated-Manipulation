@@ -1,0 +1,1 @@
+Incoming readme about motivation, design choices, and results.

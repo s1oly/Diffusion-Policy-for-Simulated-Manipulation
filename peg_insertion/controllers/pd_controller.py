@@ -1,7 +1,5 @@
 import time
 
-
-
 class PD_Controller():
     """
     This class corresponds to the controller for the dataset
