@@ -97,6 +97,14 @@ class PDController:
     # already inserted -- it drops the last 2 cm on release. Insisting on 0.83
     # while still gripping asks the arm to push through a hold it cannot break.
     SEATED_TOL = 0.040
+    # Reach ceiling from the Panda base, metres. The nut hangs 5.4 cm off the
+    # handle, so the orientation chosen at grasp decides whether the eef ends up
+    # on the near or far side of the peg -- and the far side can exceed the arm's
+    # reach. Measured with tools/rate.py: successful transports sit at <= 0.806 m
+    # of base->eef reach, failures pile up at ~0.85. `_capture_grasp` uses this to
+    # turn to the closer 90-deg-equivalent orientation only when the default one
+    # is over the wall (paired seeds 0-4: 67% -> 79%, no seed regressing).
+    REACH_WALL = 0.81
 
     # ---- gains ----
     KP_POS = 15.0
@@ -178,7 +186,8 @@ class PDController:
         # in the EEF frame because the nut is rigidly held
         self.grasp_offset = None    # (2,) nut_xy - eef_xy, expressed in eef frame
         self.grasp_dyaw = None      # nut_yaw - eef_yaw
-        self.psi_des = None         # chosen once: nearest 90-degree-equivalent yaw
+        self.psi_des = None         # chosen once: reach-gated 90-deg-equivalent yaw
+        self.grasp_theta = None     # wrist yaw at grasp; held through LIFT
 
         self.prev_pos_error = np.zeros(3)
         self.prev_lateral_error = np.zeros(2)
@@ -207,6 +216,7 @@ class PDController:
         self.grasp_offset = None
         self.grasp_dyaw = None
         self.psi_des = None
+        self.grasp_theta = None
         self.prev_pos_error = np.zeros(3)
         self.prev_lateral_error = np.zeros(2)
 
@@ -279,9 +289,22 @@ class PDController:
         d_world = obs["SquareNut_pos"][:2] - obs["robot0_eef_pos"][:2]
         self.grasp_offset = rot2d(-theta) @ d_world
         self.grasp_dyaw = wrap(psi - theta)
-        # pick the nearest of the four equivalent square orientations ONCE; if
-        # recomputed each step a nut near a 45-degree boundary would chatter
-        self.psi_des = psi - wrap(psi, np.pi / 2.0)
+        self.grasp_theta = theta    # hold this through LIFT; rotate in TRANSPORT
+        # Choose psi_des ONCE (recomputing each step would chatter near a 45-deg
+        # boundary). The square is 4-fold symmetric, but the gripper is symmetric
+        # under 180 deg, so only TWO orientations are physically distinct at the
+        # wrist: the nearest 90-deg-equivalent and a 90-deg turn from it. They put
+        # the eef on opposite sides of the peg; when the nearest one lands the eef
+        # past REACH_WALL and the turned one is closer, turn to bring it in reach.
+        psi0 = psi - wrap(psi, np.pi / 2.0)
+        base_xy = self.env.sim.data.get_body_xpos(
+            self.env.robots[0].robot_model.root_body)[:2]
+        reach = {}
+        for k in (0, 1):
+            th = wrap(psi0 + k * np.pi / 2.0 - self.grasp_dyaw)
+            reach[k] = np.linalg.norm(self.peg_xy - rot2d(th) @ self.grasp_offset - base_xy)
+        turn = reach[0] > self.REACH_WALL and reach[1] < reach[0]
+        self.psi_des = wrap(psi0 + (np.pi / 2.0 if turn else 0.0))
 
     def _eef_target_for_nut(self, nut_xy, psi_des):
         """Invert the grasp offset: where must the eef be to put the nut there?
@@ -477,11 +500,15 @@ class PDController:
 
         eef = obs["robot0_eef_pos"]
         target = np.array([eef[0], eef[1], self.SAFE_Z])
-        _, theta_des = self._eef_target_for_nut(self.peg_xy, self.psi_des)
 
         if self._settled(abs(eef[2] - self.SAFE_Z) < self.Z_TOL):
             self._advance(Phase.TRANSPORT)
-        return self._servo_to(target, theta_des, obs)
+        # Hold the grasp orientation and climb straight up; do NOT pre-rotate to
+        # theta_des here. A ~90-deg wrist turn while still low flings the nut on
+        # its 5.4 cm arm (tilt spikes to 10-15 deg) and retracts the arm into a
+        # pose it cannot re-extend from -- measured, the nut ended 350-380 mm off
+        # the peg. TRANSPORT does the rotation at SAFE_Z where the nut has room.
+        return self._servo_to(target, self.grasp_theta, obs)
 
     def _do_transport(self, obs):
         """Absorbs the old separate 'align' phase.
