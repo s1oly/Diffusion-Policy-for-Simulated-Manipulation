@@ -89,7 +89,7 @@ def build_controller(name, env):
     raise ValueError(f"unknown controller: {name}")
 
 
-def make_env(horizon):
+def make_env(horizon, seed=None):
     return suite.make(
         ENV_NAME,
         robots="Panda",
@@ -98,7 +98,27 @@ def make_env(horizon):
         use_camera_obs=False,
         control_freq=20,
         horizon=horizon,
+        seed=seed,
     )
+
+
+def seed_placement(env, episode_seed):
+    """Reseed the placement samplers so this episode's initial state is a pure
+    function of episode_seed -- identical across the three controllers.
+
+    Neither of the obvious routes gives per-episode control. `suite.make(seed=)`
+    seeds the reset *sequence*, so episode k depends on how many resets ran before
+    it -- and the three controllers run different numbers of attempts, so their
+    episode k would diverge. `np.random.seed` does not touch the env at all. And
+    the sampler captured its own Generator at `_load_model` time, so reassigning
+    `env.rng` is ignored -- `sampler.rng` is the object actually drawn from
+    (nut_assembly.py). Reseeding that, before reset, is the only thing that pins
+    the nut pose to `episode_seed` alone.
+    """
+    if episode_seed is None:
+        return
+    for s in env.placement_initializer.samplers.values():
+        s.rng = np.random.default_rng(episode_seed)
 
 
 def lowdim_keys(obs):
@@ -112,8 +132,9 @@ def lowdim_keys(obs):
     return sorted(keys)
 
 
-def run_episode(env, controller, keys):
+def run_episode(env, controller, keys, episode_seed=None):
     """Roll out one episode. Returns a dict of arrays, plus the success flag."""
+    seed_placement(env, episode_seed)
     env.reset()
     # reset() returns SquareNut_to_robot0_eef_pos = [0,0,0] and _quat = [0,0,0,0];
     # they only populate after the first step. With obs_horizon = 2 that makes the
@@ -224,7 +245,7 @@ def main():
     max_attempts = args.max_attempts or args.n * 10
 
     np.random.seed(args.seed)
-    env = make_env(args.horizon)
+    env = make_env(args.horizon, args.seed)
     controller = build_controller(args.controller, env)
 
     keys = lowdim_keys(env.reset())
@@ -234,8 +255,14 @@ def main():
     attempt_yaws, attempt_success = [], []
     attempts = 0
     while len(episodes) < args.n and attempts < max_attempts:
+        # Per-ATTEMPT seed, not per-kept-demo: the three controllers keep
+        # different subsets (their success rates differ), but presenting them the
+        # same attempt SEQUENCE is what pairs the ablation. The seed depends only
+        # on (args.seed, attempts), so attempt k is the same nut pose in every run
+        # that shares --seed. SeedSequence mixes the pair into a well-spread int.
+        episode_seed = int(np.random.SeedSequence([args.seed, attempts]).generate_state(1)[0])
         attempts += 1
-        ep, success = run_episode(env, controller, keys)
+        ep, success = run_episode(env, controller, keys, episode_seed)
         attempt_yaws.append(ep["spawn_yaw"])
         attempt_success.append(int(success))
         if success or args.keep_failures:
