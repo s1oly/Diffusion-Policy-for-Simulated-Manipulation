@@ -34,6 +34,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "controllers"))
 
 import robosuite as suite
+import robosuite.utils.transform_utils as T
 from robosuite.environments.base import register_env
 
 from Manipulation_Enviroment import Manipulation_Enviroment
@@ -41,6 +42,18 @@ from Manipulation_Enviroment import Manipulation_Enviroment
 register_env(Manipulation_Enviroment)
 
 ENV_NAME = Manipulation_Enviroment.__name__
+
+
+def spawn_yaw_deg(obs):
+    """Nut spawn yaw in degrees, from an (x,y,z,w) obs quaternion.
+
+    Recorded per demo because success is BIASED along this axis and only
+    successful episodes are kept -- so the training distribution is not the
+    uniform-yaw distribution that evaluation samples from. Keeping the attempted
+    and kept yaws makes that bias measurable after the fact instead of invisible.
+    """
+    R = T.quat2mat(obs["SquareNut_quat"])
+    return float(np.degrees(np.arctan2(R[1, 0], R[0, 0])))
 
 
 class RandomController:
@@ -76,7 +89,7 @@ def build_controller(name, env):
     raise ValueError(f"unknown controller: {name}")
 
 
-def make_env(horizon):
+def make_env(horizon, seed=None):
     return suite.make(
         ENV_NAME,
         robots="Panda",
@@ -85,7 +98,27 @@ def make_env(horizon):
         use_camera_obs=False,
         control_freq=20,
         horizon=horizon,
+        seed=seed,
     )
+
+
+def seed_placement(env, episode_seed):
+    """Reseed the placement samplers so this episode's initial state is a pure
+    function of episode_seed -- identical across the three controllers.
+
+    Neither of the obvious routes gives per-episode control. `suite.make(seed=)`
+    seeds the reset *sequence*, so episode k depends on how many resets ran before
+    it -- and the three controllers run different numbers of attempts, so their
+    episode k would diverge. `np.random.seed` does not touch the env at all. And
+    the sampler captured its own Generator at `_load_model` time, so reassigning
+    `env.rng` is ignored -- `sampler.rng` is the object actually drawn from
+    (nut_assembly.py). Reseeding that, before reset, is the only thing that pins
+    the nut pose to `episode_seed` alone.
+    """
+    if episode_seed is None:
+        return
+    for s in env.placement_initializer.samplers.values():
+        s.rng = np.random.default_rng(episode_seed)
 
 
 def lowdim_keys(obs):
@@ -99,13 +132,19 @@ def lowdim_keys(obs):
     return sorted(keys)
 
 
-def run_episode(env, controller, keys):
+def run_episode(env, controller, keys, episode_seed=None):
     """Roll out one episode. Returns a dict of arrays, plus the success flag."""
-    obs = env.reset()
+    seed_placement(env, episode_seed)
+    env.reset()
+    # reset() returns SquareNut_to_robot0_eef_pos = [0,0,0] and _quat = [0,0,0,0];
+    # they only populate after the first step. With obs_horizon = 2 that makes the
+    # first training window of every demo half fabricated.
+    obs = env._get_observations(force_update=True)
     controller.reset()
+    yaw0 = spawn_yaw_deg(obs)
 
     traj = {k: [] for k in keys}
-    actions, rewards, dones, states = [], [], [], []
+    actions, rewards, states = [], [], []
     success = False
 
     done = False
@@ -124,17 +163,32 @@ def run_episode(env, controller, keys):
         # env._check_success() was already refreshed by env.reward() inside step()
         if env._check_success():
             success = True
-        dones.append(bool(success))
+
+        # End the rollout when the FSM finishes, not at the horizon. Diffusion
+        # policy samples fixed-length windows uniformly across the buffer, so
+        # trailing idle steps would teach the policy to output zeros. The demo
+        # ends at RELEASE + RETREAT, which is past the first _check_success.
+        if getattr(controller, "finished", False):
+            done = True
+
+    # robomimic expects `dones` one-hot at the terminal step, not sticky-after-
+    # success. The success flag lives in the demo's `successful` attr instead.
+    dones = np.zeros(len(actions), dtype=np.int64)
+    if len(dones):
+        dones[-1] = 1
 
     episode = {k: np.array(v) for k, v in traj.items()}
     episode["actions"] = np.array(actions)
     episode["rewards"] = np.array(rewards)
-    episode["dones"] = np.array(dones, dtype=np.int64)
+    episode["dones"] = dones
     episode["states"] = np.array(states)
+    episode["successful"] = success
+    episode["spawn_yaw"] = yaw0
     return episode, success
 
 
-def write_hdf5(path, episodes, env, keys, controller_name):
+def write_hdf5(path, episodes, env, keys, controller_name,
+               attempt_yaws=None, attempt_success=None):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with h5py.File(path, "w") as f:
         grp = f.create_group("data")
@@ -147,6 +201,8 @@ def write_hdf5(path, episodes, env, keys, controller_name):
             for k in ("actions", "rewards", "dones", "states"):
                 g.create_dataset(k, data=ep[k], compression="gzip")
             g.attrs["num_samples"] = len(ep["actions"])
+            g.attrs["successful"] = bool(ep["successful"])
+            g.attrs["spawn_yaw"] = float(ep["spawn_yaw"])
             total += len(ep["actions"])
 
         grp.attrs["total"] = total
@@ -163,6 +219,12 @@ def write_hdf5(path, episodes, env, keys, controller_name):
         })
         grp.attrs["controller"] = controller_name
         grp.attrs["obs_keys"] = json.dumps(keys)
+        # Every attempt, kept or discarded. Attempts are uniform in yaw by
+        # construction, so pairing these two arrays gives the per-yaw success
+        # rate -- i.e. exactly how the filter skewed the training set.
+        if attempt_yaws is not None:
+            grp.attrs["attempt_yaws"] = np.asarray(attempt_yaws, dtype=np.float64)
+            grp.attrs["attempt_success"] = np.asarray(attempt_success, dtype=np.int64)
     return total
 
 
@@ -183,17 +245,26 @@ def main():
     max_attempts = args.max_attempts or args.n * 10
 
     np.random.seed(args.seed)
-    env = make_env(args.horizon)
+    env = make_env(args.horizon, args.seed)
     controller = build_controller(args.controller, env)
 
     keys = lowdim_keys(env.reset())
     print(f"recording {len(keys)} low-dim obs keys: {keys}\n")
 
     episodes = []
+    attempt_yaws, attempt_success = [], []
     attempts = 0
     while len(episodes) < args.n and attempts < max_attempts:
+        # Per-ATTEMPT seed, not per-kept-demo: the three controllers keep
+        # different subsets (their success rates differ), but presenting them the
+        # same attempt SEQUENCE is what pairs the ablation. The seed depends only
+        # on (args.seed, attempts), so attempt k is the same nut pose in every run
+        # that shares --seed. SeedSequence mixes the pair into a well-spread int.
+        episode_seed = int(np.random.SeedSequence([args.seed, attempts]).generate_state(1)[0])
         attempts += 1
-        ep, success = run_episode(env, controller, keys)
+        ep, success = run_episode(env, controller, keys, episode_seed)
+        attempt_yaws.append(ep["spawn_yaw"])
+        attempt_success.append(int(success))
         if success or args.keep_failures:
             episodes.append(ep)
         print(f"  attempt {attempts:4d}  T={len(ep['actions']):4d}  "
@@ -206,8 +277,9 @@ def main():
         print(f"\nNo episodes collected in {attempts} attempts - nothing written.")
         sys.exit(1)
 
-    total = write_hdf5(out, episodes, env, keys, args.controller)
-    rate = sum(1 for e in episodes if e["dones"][-1]) / attempts
+    total = write_hdf5(out, episodes, env, keys, args.controller,
+                       attempt_yaws, attempt_success)
+    rate = sum(1 for e in episodes if e["successful"]) / attempts
     print(f"\nwrote {len(episodes)} episodes ({total} transitions) -> {out}")
     print(f"success rate: {rate:.1%} over {attempts} attempts")
 
