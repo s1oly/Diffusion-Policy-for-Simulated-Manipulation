@@ -74,7 +74,7 @@ TERMINAL = (Phase.DONE, Phase.FAILED)
 class PDController:
     """Phase-indexed state machine driving the env from `obs`.
 
-    NoisyController and HybridController subclass this so the ablation differs in
+    HybridController and PureNoiseController subclass this so the ablation differs in
     exactly one thing. Do not re-implement the sequencing downstream.
     """
 
