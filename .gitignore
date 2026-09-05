@@ -2,3 +2,4 @@
 *.pyc
 controller_practice.py
 *.hdf5
+*.DS_Store

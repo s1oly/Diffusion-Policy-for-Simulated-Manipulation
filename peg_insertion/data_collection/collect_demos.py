@@ -80,12 +80,12 @@ def build_controller(name, env):
     if name == "pd":
         from pd_controller import PDController
         return PDController(env)
-    if name == "noisy":
-        from noisy_controller import NoisyController
-        return NoisyController(env)
     if name == "hybrid":
         from hybrid_controller import HybridController
         return HybridController(env)
+    if name == "pure_noise":
+        from pure_noise_controller import PureNoiseController
+        return PureNoiseController(env)
     raise ValueError(f"unknown controller: {name}")
 
 
@@ -230,7 +230,7 @@ def write_hdf5(path, episodes, env, keys, controller_name,
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--controller", default="random", choices=["random", "pd", "noisy", "hybrid"])
+    p.add_argument("--controller", default="random", choices=["random", "pd", "hybrid", "pure_noise"])
     p.add_argument("--n", type=int, default=10, help="number of SUCCESSFUL episodes to keep")
     p.add_argument("--max-attempts", type=int, default=None,
                    help="give up after this many rollouts (default: 10x --n)")

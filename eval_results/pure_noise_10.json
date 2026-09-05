@@ -1,0 +1,311 @@
+{
+  "checkpoint": "/home/shuban_iyer/diffusion_policy/outputs/hybrid_10/checkpoints/latest.ckpt",
+  "dataset": "pure_noise_10",
+  "controller": "pure_noise",
+  "n_demos": 10,
+  "n_rollouts": 50,
+  "success_rate": 0.06,
+  "success_se": 0.03358571124749333,
+  "per_rollout": [
+    {
+      "seed": 100000,
+      "spawn_yaw": -0.8893873380712167,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100001,
+      "spawn_yaw": 14.814454008625322,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100002,
+      "spawn_yaw": -133.5305894611339,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100003,
+      "spawn_yaw": -146.05789263205793,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100004,
+      "spawn_yaw": 30.463004777122013,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100005,
+      "spawn_yaw": 11.419677699232842,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100006,
+      "spawn_yaw": 74.1019221493693,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100007,
+      "spawn_yaw": 21.38372364920383,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100008,
+      "spawn_yaw": 130.4498271624871,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100009,
+      "spawn_yaw": 65.13739200230933,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100010,
+      "spawn_yaw": -57.285325872998236,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100011,
+      "spawn_yaw": 29.230939432497983,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100012,
+      "spawn_yaw": -131.74728897840947,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100013,
+      "spawn_yaw": 164.097991335163,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100014,
+      "spawn_yaw": -44.42449132033667,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100015,
+      "spawn_yaw": 80.82609483276413,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100016,
+      "spawn_yaw": 19.4096384070026,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100017,
+      "spawn_yaw": -40.642435051772985,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100018,
+      "spawn_yaw": -114.75808873494955,
+      "success": true,
+      "steps": 387
+    },
+    {
+      "seed": 100019,
+      "spawn_yaw": -109.24108184236881,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100020,
+      "spawn_yaw": 128.48838458807566,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100021,
+      "spawn_yaw": 81.86300666786181,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100022,
+      "spawn_yaw": -33.5040265135652,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100023,
+      "spawn_yaw": 172.68510132234906,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100024,
+      "spawn_yaw": 85.79485736961124,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100025,
+      "spawn_yaw": 41.95582315569326,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100026,
+      "spawn_yaw": -158.25305691182842,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100027,
+      "spawn_yaw": 65.94312277275134,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100028,
+      "spawn_yaw": 70.84973032590464,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100029,
+      "spawn_yaw": 34.98489361841532,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100030,
+      "spawn_yaw": -3.4736672873275625,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100031,
+      "spawn_yaw": 116.56259837042828,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100032,
+      "spawn_yaw": -70.55854535376073,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100033,
+      "spawn_yaw": -88.38265936219953,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100034,
+      "spawn_yaw": -97.19082705091323,
+      "success": true,
+      "steps": 444
+    },
+    {
+      "seed": 100035,
+      "spawn_yaw": -6.874908561651114,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100036,
+      "spawn_yaw": -140.16317545005768,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100037,
+      "spawn_yaw": -73.57811849347974,
+      "success": true,
+      "steps": 367
+    },
+    {
+      "seed": 100038,
+      "spawn_yaw": 117.52847987950325,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100039,
+      "spawn_yaw": 171.37810032627885,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100040,
+      "spawn_yaw": -84.0107401267769,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100041,
+      "spawn_yaw": -129.26064664324852,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100042,
+      "spawn_yaw": -25.518998656999727,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100043,
+      "spawn_yaw": 80.56980664981033,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100044,
+      "spawn_yaw": 80.88476769487959,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100045,
+      "spawn_yaw": 78.0282604549311,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100046,
+      "spawn_yaw": 105.1658525336649,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100047,
+      "spawn_yaw": -169.58851320805172,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100048,
+      "spawn_yaw": 55.87382344902018,
+      "success": false,
+      "steps": 600
+    },
+    {
+      "seed": 100049,
+      "spawn_yaw": 118.75941506476387,
+      "success": false,
+      "steps": 600
+    }
+  ]
+}

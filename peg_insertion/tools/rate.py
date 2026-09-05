@@ -44,12 +44,12 @@ def build(name, env):
     if name == "pd":
         from pd_controller import PDController
         return PDController(env)
-    if name == "noisy":
-        from noisy_controller import NoisyController
-        return NoisyController(env)
     if name == "hybrid":
         from hybrid_controller import HybridController
         return HybridController(env)
+    if name == "pure_noise":
+        from pure_noise_controller import PureNoiseController
+        return PureNoiseController(env)
     raise SystemExit(f"unknown controller: {name}")
 
 
@@ -82,7 +82,7 @@ def gate_line(ctrl, obs):
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--controller", default="pd", choices=["pd", "noisy", "hybrid"])
+    p.add_argument("--controller", default="pd", choices=["pd", "hybrid", "pure_noise"])
     p.add_argument("--n", type=int, default=20, help="episodes to run")
     p.add_argument("--horizon", type=int, default=800)
     p.add_argument("--seed", type=int, default=0)
